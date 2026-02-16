@@ -14,4 +14,5 @@ public class Property
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<Unit> Units { get; set; } = new List<Unit>();
+    public ICollection<PropertyImage> Images { get; set; } = new List<PropertyImage>();
 }

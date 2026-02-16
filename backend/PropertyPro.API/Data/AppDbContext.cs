@@ -15,6 +15,12 @@ public class AppDbContext : DbContext
     public DbSet<Property> Properties => Set<Property>();
     public DbSet<Unit> Units => Set<Unit>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<Lease> Leases => Set<Lease>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<TenantDocument> TenantDocuments => Set<TenantDocument>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<PropertyImage> PropertyImages => Set<PropertyImage>();
+    public DbSet<LeaseActivity> LeaseActivities => Set<LeaseActivity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -104,11 +110,90 @@ public class AppDbContext : DbContext
             e.HasOne(t => t.Unit).WithMany().HasForeignKey(t => t.UnitId).OnDelete(DeleteBehavior.SetNull);
         });
 
+        // Lease
+        modelBuilder.Entity<Lease>(e =>
+        {
+            e.HasKey(l => l.LeaseId);
+            e.Property(l => l.MonthlyRent).HasColumnType("decimal(10,2)");
+            e.Property(l => l.SecurityDeposit).HasColumnType("decimal(10,2)");
+            e.Property(l => l.PaymentFrequency).IsRequired().HasMaxLength(20);
+            e.Property(l => l.Status).IsRequired().HasMaxLength(20);
+            e.Property(l => l.Notes).HasMaxLength(1000);
+            e.HasOne(l => l.Landlord).WithMany().HasForeignKey(l => l.LandlordId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(l => l.Tenant).WithMany().HasForeignKey(l => l.TenantId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(l => l.Unit).WithMany().HasForeignKey(l => l.UnitId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Payment
+        modelBuilder.Entity<Payment>(e =>
+        {
+            e.HasKey(p => p.PaymentId);
+            e.Property(p => p.AmountPaid).HasColumnType("decimal(10,2)");
+            e.Property(p => p.LateFee).HasColumnType("decimal(10,2)");
+            e.Property(p => p.PaymentMethod).IsRequired().HasMaxLength(30);
+            e.Property(p => p.Status).IsRequired().HasMaxLength(20);
+            e.Property(p => p.ReceiptNumber).IsRequired().HasMaxLength(30);
+            e.Property(p => p.Notes).HasMaxLength(500);
+            e.HasOne(p => p.Lease).WithMany(l => l.Payments).HasForeignKey(p => p.LeaseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.Landlord).WithMany().HasForeignKey(p => p.LandlordId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // TenantDocument
+        modelBuilder.Entity<TenantDocument>(e =>
+        {
+            e.HasKey(d => d.TenantDocumentId);
+            e.Property(d => d.FileName).IsRequired().HasMaxLength(255);
+            e.Property(d => d.StoredFileName).IsRequired().HasMaxLength(300);
+            e.Property(d => d.Category).IsRequired().HasMaxLength(50);
+            e.Property(d => d.ContentType).IsRequired().HasMaxLength(100);
+            e.HasOne(d => d.Tenant).WithMany().HasForeignKey(d => d.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(d => d.Landlord).WithMany().HasForeignKey(d => d.LandlordId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // AppSetting
+        modelBuilder.Entity<AppSetting>(e =>
+        {
+            e.HasKey(s => s.Key);
+            e.Property(s => s.Key).IsRequired().HasMaxLength(100);
+            e.Property(s => s.Value).IsRequired().HasMaxLength(500);
+            e.Property(s => s.Description).HasMaxLength(255);
+        });
+
+        // LeaseActivity
+        modelBuilder.Entity<LeaseActivity>(e =>
+        {
+            e.HasKey(a => a.LeaseActivityId);
+            e.Property(a => a.OldStatus).IsRequired().HasMaxLength(30);
+            e.Property(a => a.NewStatus).IsRequired().HasMaxLength(30);
+            e.HasOne(a => a.Lease).WithMany(l => l.Activities).HasForeignKey(a => a.LeaseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.ChangedBy).WithMany().HasForeignKey(a => a.ChangedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // PropertyImage
+        modelBuilder.Entity<PropertyImage>(e =>
+        {
+            e.HasKey(i => i.PropertyImageId);
+            e.Property(i => i.FileName).IsRequired().HasMaxLength(255);
+            e.Property(i => i.StoredFileName).IsRequired().HasMaxLength(300);
+            e.Property(i => i.ContentType).IsRequired().HasMaxLength(100);
+            e.HasOne(i => i.Property).WithMany(p => p.Images).HasForeignKey(i => i.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(i => i.Unit).WithMany(u => u.Images).HasForeignKey(i => i.UnitId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(i => i.Landlord).WithMany().HasForeignKey(i => i.LandlordId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         // Seed Roles
         modelBuilder.Entity<Role>().HasData(
             new Role { RoleId = 1, RoleName = "Admin" },
             new Role { RoleId = 2, RoleName = "Landlord" },
             new Role { RoleId = 3, RoleName = "Tenant" }
+        );
+
+        // Seed App Settings
+        var seedDate = new DateTime(2026, 2, 14, 0, 0, 0, DateTimeKind.Utc);
+        modelBuilder.Entity<AppSetting>().HasData(
+            new AppSetting { Key = "MaxImagesPerProperty", Value = "10", Description = "Maximum images allowed per property", UpdatedAt = seedDate },
+            new AppSetting { Key = "MaxImagesPerUnit", Value = "5", Description = "Maximum images allowed per unit", UpdatedAt = seedDate },
+            new AppSetting { Key = "MaxImageSizeMB", Value = "10", Description = "Maximum image file size in megabytes", UpdatedAt = seedDate }
         );
     }
 }

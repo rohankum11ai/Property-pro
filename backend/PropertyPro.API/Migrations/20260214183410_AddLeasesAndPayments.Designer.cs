@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PropertyPro.API.Data;
 
@@ -11,9 +12,11 @@ using PropertyPro.API.Data;
 namespace PropertyPro.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260214183410_AddLeasesAndPayments")]
+    partial class AddLeasesAndPayments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,52 +24,6 @@ namespace PropertyPro.API.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("PropertyPro.API.Models.AppSetting", b =>
-                {
-                    b.Property<string>("Key")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Key");
-
-                    b.ToTable("AppSettings");
-
-                    b.HasData(
-                        new
-                        {
-                            Key = "MaxImagesPerProperty",
-                            Description = "Maximum images allowed per property",
-                            UpdatedAt = new DateTime(2026, 2, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Value = "10"
-                        },
-                        new
-                        {
-                            Key = "MaxImagesPerUnit",
-                            Description = "Maximum images allowed per unit",
-                            UpdatedAt = new DateTime(2026, 2, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Value = "5"
-                        },
-                        new
-                        {
-                            Key = "MaxImageSizeMB",
-                            Description = "Maximum image file size in megabytes",
-                            UpdatedAt = new DateTime(2026, 2, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Value = "10"
-                        });
-                });
 
             modelBuilder.Entity("PropertyPro.API.Models.Lease", b =>
                 {
@@ -123,42 +80,6 @@ namespace PropertyPro.API.Migrations
                     b.HasIndex("UnitId");
 
                     b.ToTable("Leases");
-                });
-
-            modelBuilder.Entity("PropertyPro.API.Models.LeaseActivity", b =>
-                {
-                    b.Property<int>("LeaseActivityId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LeaseActivityId"));
-
-                    b.Property<DateTime>("ChangedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ChangedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LeaseId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("NewStatus")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("OldStatus")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.HasKey("LeaseActivityId");
-
-                    b.HasIndex("ChangedByUserId");
-
-                    b.HasIndex("LeaseId");
-
-                    b.ToTable("LeaseActivities");
                 });
 
             modelBuilder.Entity("PropertyPro.API.Models.Payment", b =>
@@ -270,58 +191,6 @@ namespace PropertyPro.API.Migrations
                     b.HasIndex("LandlordId");
 
                     b.ToTable("Properties");
-                });
-
-            modelBuilder.Entity("PropertyPro.API.Models.PropertyImage", b =>
-                {
-                    b.Property<int>("PropertyImageId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PropertyImageId"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("LandlordId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PropertyId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<string>("StoredFileName")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int?>("UnitId")
-                        .HasColumnType("int");
-
-                    b.HasKey("PropertyImageId");
-
-                    b.HasIndex("LandlordId");
-
-                    b.HasIndex("PropertyId");
-
-                    b.HasIndex("UnitId");
-
-                    b.ToTable("PropertyImages");
                 });
 
             modelBuilder.Entity("PropertyPro.API.Models.RefreshToken", b =>
@@ -447,55 +316,6 @@ namespace PropertyPro.API.Migrations
                     b.HasIndex("UnitId");
 
                     b.ToTable("Tenants");
-                });
-
-            modelBuilder.Entity("PropertyPro.API.Models.TenantDocument", b =>
-                {
-                    b.Property<int>("TenantDocumentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TenantDocumentId"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("LandlordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("StoredFileName")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
-                    b.HasKey("TenantDocumentId");
-
-                    b.HasIndex("LandlordId");
-
-                    b.HasIndex("TenantId");
-
-                    b.ToTable("TenantDocuments");
                 });
 
             modelBuilder.Entity("PropertyPro.API.Models.Unit", b =>
@@ -662,25 +482,6 @@ namespace PropertyPro.API.Migrations
                     b.Navigation("Unit");
                 });
 
-            modelBuilder.Entity("PropertyPro.API.Models.LeaseActivity", b =>
-                {
-                    b.HasOne("PropertyPro.API.Models.User", "ChangedBy")
-                        .WithMany()
-                        .HasForeignKey("ChangedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PropertyPro.API.Models.Lease", "Lease")
-                        .WithMany("Activities")
-                        .HasForeignKey("LeaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChangedBy");
-
-                    b.Navigation("Lease");
-                });
-
             modelBuilder.Entity("PropertyPro.API.Models.Payment", b =>
                 {
                     b.HasOne("PropertyPro.API.Models.User", "Landlord")
@@ -711,31 +512,6 @@ namespace PropertyPro.API.Migrations
                     b.Navigation("Landlord");
                 });
 
-            modelBuilder.Entity("PropertyPro.API.Models.PropertyImage", b =>
-                {
-                    b.HasOne("PropertyPro.API.Models.User", "Landlord")
-                        .WithMany()
-                        .HasForeignKey("LandlordId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PropertyPro.API.Models.Property", "Property")
-                        .WithMany("Images")
-                        .HasForeignKey("PropertyId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PropertyPro.API.Models.Unit", "Unit")
-                        .WithMany("Images")
-                        .HasForeignKey("UnitId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Landlord");
-
-                    b.Navigation("Property");
-
-                    b.Navigation("Unit");
-                });
-
             modelBuilder.Entity("PropertyPro.API.Models.RefreshToken", b =>
                 {
                     b.HasOne("PropertyPro.API.Models.User", "User")
@@ -763,25 +539,6 @@ namespace PropertyPro.API.Migrations
                     b.Navigation("Landlord");
 
                     b.Navigation("Unit");
-                });
-
-            modelBuilder.Entity("PropertyPro.API.Models.TenantDocument", b =>
-                {
-                    b.HasOne("PropertyPro.API.Models.User", "Landlord")
-                        .WithMany()
-                        .HasForeignKey("LandlordId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PropertyPro.API.Models.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Landlord");
-
-                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("PropertyPro.API.Models.Unit", b =>
@@ -827,26 +584,17 @@ namespace PropertyPro.API.Migrations
 
             modelBuilder.Entity("PropertyPro.API.Models.Lease", b =>
                 {
-                    b.Navigation("Activities");
-
                     b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("PropertyPro.API.Models.Property", b =>
                 {
-                    b.Navigation("Images");
-
                     b.Navigation("Units");
                 });
 
             modelBuilder.Entity("PropertyPro.API.Models.Role", b =>
                 {
                     b.Navigation("UserRoles");
-                });
-
-            modelBuilder.Entity("PropertyPro.API.Models.Unit", b =>
-                {
-                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("PropertyPro.API.Models.User", b =>

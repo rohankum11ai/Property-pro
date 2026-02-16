@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PropertyPro.API.Data;
 
@@ -11,9 +12,11 @@ using PropertyPro.API.Data;
 namespace PropertyPro.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260215225946_AddAppSettingsAndPropertyImages")]
+    partial class AddAppSettingsAndPropertyImages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,42 +126,6 @@ namespace PropertyPro.API.Migrations
                     b.HasIndex("UnitId");
 
                     b.ToTable("Leases");
-                });
-
-            modelBuilder.Entity("PropertyPro.API.Models.LeaseActivity", b =>
-                {
-                    b.Property<int>("LeaseActivityId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LeaseActivityId"));
-
-                    b.Property<DateTime>("ChangedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ChangedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LeaseId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("NewStatus")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("OldStatus")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.HasKey("LeaseActivityId");
-
-                    b.HasIndex("ChangedByUserId");
-
-                    b.HasIndex("LeaseId");
-
-                    b.ToTable("LeaseActivities");
                 });
 
             modelBuilder.Entity("PropertyPro.API.Models.Payment", b =>
@@ -662,25 +629,6 @@ namespace PropertyPro.API.Migrations
                     b.Navigation("Unit");
                 });
 
-            modelBuilder.Entity("PropertyPro.API.Models.LeaseActivity", b =>
-                {
-                    b.HasOne("PropertyPro.API.Models.User", "ChangedBy")
-                        .WithMany()
-                        .HasForeignKey("ChangedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PropertyPro.API.Models.Lease", "Lease")
-                        .WithMany("Activities")
-                        .HasForeignKey("LeaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChangedBy");
-
-                    b.Navigation("Lease");
-                });
-
             modelBuilder.Entity("PropertyPro.API.Models.Payment", b =>
                 {
                     b.HasOne("PropertyPro.API.Models.User", "Landlord")
@@ -827,8 +775,6 @@ namespace PropertyPro.API.Migrations
 
             modelBuilder.Entity("PropertyPro.API.Models.Lease", b =>
                 {
-                    b.Navigation("Activities");
-
                     b.Navigation("Payments");
                 });
 

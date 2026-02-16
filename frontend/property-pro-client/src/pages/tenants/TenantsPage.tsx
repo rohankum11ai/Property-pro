@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, Mail, Phone, Home, Pencil, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Tenant } from '@/types/tenant'
 import { getTenants, createTenant, updateTenant, deleteTenant } from '@/api/tenantApi'
 import TenantFormModal from '@/components/tenants/TenantFormModal'
@@ -13,7 +14,6 @@ export default function TenantsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Tenant | null>(null)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const fetchTenants = async (q?: string) => {
     try {
@@ -34,7 +34,6 @@ export default function TenantsPage() {
 
   const handleSubmit = async (data: Parameters<typeof createTenant>[0]) => {
     setSaving(true)
-    setError(null)
     try {
       if (editing) {
         const updated = await updateTenant(editing.tenantId, data)
@@ -52,7 +51,7 @@ export default function TenantsPage() {
         ?? (e?.response?.status ? `Server error (${e.response.status})` : null)
         ?? e?.message
         ?? 'Something went wrong. Please try again.'
-      setError(msg)
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -79,14 +78,6 @@ export default function TenantsPage() {
           <Plus size={16} /> Add Tenant
         </button>
       </div>
-
-      {/* Error banner */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-center justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4 font-bold">✕</button>
-        </div>
-      )}
 
       {/* Search */}
       <div className="relative">

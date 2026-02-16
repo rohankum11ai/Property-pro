@@ -12,4 +12,5 @@ public class Unit
     public int? SquareFeet { get; set; }
     public string Status { get; set; } = "Available"; // Available | Occupied | UnderMaintenance
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public ICollection<PropertyImage> Images { get; set; } = new List<PropertyImage>();
 }

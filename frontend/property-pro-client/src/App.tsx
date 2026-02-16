@@ -14,6 +14,9 @@ import PropertiesPage from '@/pages/properties/PropertiesPage'
 import PropertyDetailPage from '@/pages/properties/PropertyDetailPage'
 import TenantsPage from '@/pages/tenants/TenantsPage'
 import TenantDetailPage from '@/pages/tenants/TenantDetailPage'
+import LeasesPage from '@/pages/leases/LeasesPage'
+import LeaseDetailPage from '@/pages/leases/LeaseDetailPage'
+import PaymentsPage from '@/pages/payments/PaymentsPage'
 
 export default function App() {
   const { initFromStorage } = useAuthStore()
@@ -65,6 +68,21 @@ export default function App() {
           <Route path="/tenants/:id" element={
             <ProtectedRoute allowedRoles={['Landlord', 'Admin']}>
               <TenantDetailPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/leases" element={
+            <ProtectedRoute allowedRoles={['Landlord', 'Admin']}>
+              <LeasesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/leases/:id" element={
+            <ProtectedRoute allowedRoles={['Landlord', 'Admin']}>
+              <LeaseDetailPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/payments" element={
+            <ProtectedRoute allowedRoles={['Landlord', 'Admin']}>
+              <PaymentsPage />
             </ProtectedRoute>
           } />
         </Route>

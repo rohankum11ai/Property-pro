@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, BedDouble, Bath, DollarSign, Ruler, Pencil, Trash2, Users, Home } from 'lucide-react'
+import { ArrowLeft, Plus, BedDouble, Bath, DollarSign, Ruler, Pencil, Trash2, Users, Home, Image as ImageIcon, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Property, Unit } from '@/types/property'
+import type { PropertyImage } from '@/types/image'
 import { isMultiUnit } from '@/types/property'
 import { getProperty, getUnits, createUnit, updateUnit, deleteUnit } from '@/api/propertyApi'
+import { getPropertyImages, getUnitImages, uploadPropertyImage, uploadUnitImage } from '@/api/imageApi'
+import { getSetting } from '@/api/settingsApi'
 import UnitStatusBadge from '@/components/properties/UnitStatusBadge'
 import UnitFormModal, { type UnitFormData } from '@/components/properties/UnitFormModal'
 import ConfirmDialog from '@/components/common/ConfirmDialog'
+import ImageGallery from '@/components/common/ImageGallery'
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -21,11 +25,35 @@ export default function PropertyDetailPage() {
   const [deleteUnitTarget, setDeleteUnitTarget] = useState<Unit | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Image state
+  const [propertyImages, setPropertyImages] = useState<PropertyImage[]>([])
+  const [unitImagesMap, setUnitImagesMap] = useState<Record<number, PropertyImage[]>>({})
+  const [unitImageModal, setUnitImageModal] = useState<Unit | null>(null)
+  const [maxPropertyImages, setMaxPropertyImages] = useState(10)
+  const [maxUnitImages, setMaxUnitImages] = useState(5)
+  const [maxImageSizeMB, setMaxImageSizeMB] = useState(10)
+
   const multiUnit = property ? isMultiUnit(property.propertyType) : false
 
   useEffect(() => {
     if (id) fetchData(parseInt(id))
+    fetchSettings()
   }, [id])
+
+  const fetchSettings = async () => {
+    try {
+      const [propSetting, unitSetting, sizeSetting] = await Promise.all([
+        getSetting('MaxImagesPerProperty'),
+        getSetting('MaxImagesPerUnit'),
+        getSetting('MaxImageSizeMB'),
+      ])
+      setMaxPropertyImages(parseInt(propSetting.value) || 10)
+      setMaxUnitImages(parseInt(unitSetting.value) || 5)
+      setMaxImageSizeMB(parseInt(sizeSetting.value) || 10)
+    } catch {
+      // Use defaults silently
+    }
+  }
 
   const fetchData = async (propertyId: number) => {
     try {
@@ -36,6 +64,19 @@ export default function PropertyDetailPage() {
       ])
       setProperty(prop)
       setUnits(unitList)
+
+      // Fetch images based on property type
+      if (prop && !isMultiUnit(prop.propertyType)) {
+        const imgs = await getPropertyImages(propertyId)
+        setPropertyImages(imgs)
+      } else if (unitList.length > 0) {
+        const imgResults = await Promise.all(
+          unitList.map(u => getUnitImages(u.unitId).then(imgs => ({ unitId: u.unitId, imgs })))
+        )
+        const map: Record<number, PropertyImage[]> = {}
+        imgResults.forEach(r => { map[r.unitId] = r.imgs })
+        setUnitImagesMap(map)
+      }
     } finally {
       setLoading(false)
     }
@@ -83,6 +124,33 @@ export default function PropertyDetailPage() {
     } finally {
       setDeleting(false)
     }
+  }
+
+  // Image handlers
+  const handlePropertyImageUpload = async (file: File) => {
+    const img = await uploadPropertyImage(parseInt(id!), file)
+    setPropertyImages(prev => [...prev, img])
+    return img
+  }
+
+  const handlePropertyImageDeleted = (imageId: number) => {
+    setPropertyImages(prev => prev.filter(i => i.propertyImageId !== imageId))
+  }
+
+  const handleUnitImageUpload = async (unitId: number, file: File) => {
+    const img = await uploadUnitImage(unitId, file)
+    setUnitImagesMap(prev => ({
+      ...prev,
+      [unitId]: [...(prev[unitId] || []), img]
+    }))
+    return img
+  }
+
+  const handleUnitImageDeleted = (unitId: number, imageId: number) => {
+    setUnitImagesMap(prev => ({
+      ...prev,
+      [unitId]: (prev[unitId] || []).filter(i => i.propertyImageId !== imageId)
+    }))
   }
 
   if (loading) {
@@ -158,47 +226,60 @@ export default function PropertyDetailPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {units.map(u => (
-                  <div key={u.unitId}
-                    className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition group">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold text-slate-800 text-lg">Unit {u.unitNumber}</span>
-                      <div className="flex items-center gap-2">
-                        <UnitStatusBadge status={u.status} />
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                          <button onClick={() => { setEditingUnit(u); setModalOpen(true) }}
-                            className="p-1 text-slate-400 hover:text-blue-600 rounded transition">
-                            <Pencil size={13} />
-                          </button>
-                          <button onClick={e => { e.stopPropagation(); setDeleteUnitTarget(u) }}
-                            className="p-1 text-slate-400 hover:text-red-600 rounded transition">
-                            <Trash2 size={13} />
-                          </button>
+                {units.map(u => {
+                  const imgCount = (unitImagesMap[u.unitId] || []).length
+                  return (
+                    <div key={u.unitId}
+                      className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition group">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-semibold text-slate-800 text-lg">Unit {u.unitNumber}</span>
+                        <div className="flex items-center gap-2">
+                          <UnitStatusBadge status={u.status} />
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                            <button onClick={() => { setEditingUnit(u); setModalOpen(true) }}
+                              className="p-1 text-slate-400 hover:text-blue-600 rounded transition">
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); setDeleteUnitTarget(u) }}
+                              className="p-1 text-slate-400 hover:text-red-600 rounded transition">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm text-slate-600">
-                      <div className="flex items-center gap-1.5">
-                        <BedDouble size={14} className="text-slate-400" />
-                        <span>{u.bedrooms} bed{u.bedrooms !== 1 ? 's' : ''}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Bath size={14} className="text-slate-400" />
-                        <span>{u.bathrooms} bath{u.bathrooms !== 1 ? 's' : ''}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <DollarSign size={14} className="text-slate-400" />
-                        <span>${u.rentAmount.toLocaleString()}/mo</span>
-                      </div>
-                      {u.squareFeet && (
+                      <div className="grid grid-cols-2 gap-2 text-sm text-slate-600">
                         <div className="flex items-center gap-1.5">
-                          <Ruler size={14} className="text-slate-400" />
-                          <span>{u.squareFeet.toLocaleString()} sq ft</span>
+                          <BedDouble size={14} className="text-slate-400" />
+                          <span>{u.bedrooms} bed{u.bedrooms !== 1 ? 's' : ''}</span>
                         </div>
-                      )}
+                        <div className="flex items-center gap-1.5">
+                          <Bath size={14} className="text-slate-400" />
+                          <span>{u.bathrooms} bath{u.bathrooms !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign size={14} className="text-slate-400" />
+                          <span>${u.rentAmount.toLocaleString()}/mo</span>
+                        </div>
+                        {u.squareFeet && (
+                          <div className="flex items-center gap-1.5">
+                            <Ruler size={14} className="text-slate-400" />
+                            <span>{u.squareFeet.toLocaleString()} sq ft</span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Image count + open gallery */}
+                      <div className="mt-3 pt-3 border-t border-slate-100">
+                        <button
+                          onClick={() => setUnitImageModal(u)}
+                          className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 transition"
+                        >
+                          <ImageIcon size={14} />
+                          <span>{imgCount} image{imgCount !== 1 ? 's' : ''}</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -265,6 +346,18 @@ export default function PropertyDetailPage() {
             )}
           </div>
 
+          {/* Property Images */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Photos</h2>
+            <ImageGallery
+              images={propertyImages}
+              maxImages={maxPropertyImages}
+              maxSizeMB={maxImageSizeMB}
+              onUpload={handlePropertyImageUpload}
+              onDeleted={handlePropertyImageDeleted}
+            />
+          </div>
+
           {/* Tenant Assignment for single-unit */}
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Tenant</h2>
@@ -320,6 +413,29 @@ export default function PropertyDetailPage() {
         onConfirm={handleDeleteUnit}
         onCancel={() => setDeleteUnitTarget(null)}
       />
+
+      {/* Unit Image Modal (multi-unit) */}
+      {unitImageModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-800 text-lg">
+                Unit {unitImageModal.unitNumber} — Photos
+              </h3>
+              <button onClick={() => setUnitImageModal(null)} className="p-1 text-slate-400 hover:text-slate-600 transition">
+                <X size={20} />
+              </button>
+            </div>
+            <ImageGallery
+              images={unitImagesMap[unitImageModal.unitId] || []}
+              maxImages={maxUnitImages}
+              maxSizeMB={maxImageSizeMB}
+              onUpload={(file) => handleUnitImageUpload(unitImageModal.unitId, file)}
+              onDeleted={(imageId) => handleUnitImageDeleted(unitImageModal.unitId, imageId)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

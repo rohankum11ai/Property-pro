@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, AlertTriangle } from 'lucide-react'
 import type { Tenant } from '@/types/tenant'
-import type { Property, Unit } from '@/types/property'
-import { getProperties } from '@/api/propertyApi'
-import { getUnits } from '@/api/propertyApi'
+import type { Lease } from '@/types/lease'
+import { getLeases } from '@/api/leaseApi'
 
 const schema = z.object({
   firstName: z.string().min(1, 'Required'),
@@ -47,15 +46,19 @@ export default function TenantFormModal({ open, onClose, onSubmit, initial, load
     resolver: zodResolver(schema) as unknown as Resolver<FormData>,
   })
 
-  const [properties, setProperties] = useState<Property[]>([])
-  const [units, setUnits] = useState<Unit[]>([])
-  const [selectedPropertyId, setSelectedPropertyId] = useState<number | ''>('')
+  const [tenantLease, setTenantLease] = useState<Lease | null>(null)
 
   useEffect(() => {
-    if (open) {
-      getProperties().then(setProperties).catch(() => {})
+    if (open && initial) {
+      // Check if this tenant has any lease
+      getLeases().then(leases => {
+        const lease = leases.find(l => l.tenantId === initial.tenantId)
+        setTenantLease(lease ?? null)
+      }).catch(() => {})
+    } else {
+      setTenantLease(null)
     }
-  }, [open])
+  }, [open, initial])
 
   useEffect(() => {
     if (initial) {
@@ -69,34 +72,21 @@ export default function TenantFormModal({ open, onClose, onSubmit, initial, load
         notes: initial.notes ?? '',
         unitId: initial.unitId ?? undefined,
       })
-      if (initial.propertyId) {
-        setSelectedPropertyId(initial.propertyId)
-        getUnits(initial.propertyId).then(setUnits).catch(() => {})
-      }
     } else {
       reset({ firstName: '', lastName: '', email: '', phone: '', emergencyContact: '', emergencyPhone: '', notes: '', unitId: undefined })
-      setSelectedPropertyId('')
-      setUnits([])
     }
   }, [initial, open, reset])
 
-  const handlePropertyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value
-    setSelectedPropertyId(val ? parseInt(val) : '')
-    setUnits([])
-    if (val) {
-      getUnits(parseInt(val)).then(setUnits).catch(() => {})
-    }
-  }
-
   if (!open) return null
+
+  const isEditing = !!initial
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-800">
-            {initial ? 'Edit Tenant' : 'Add Tenant'}
+            {isEditing ? 'Edit Tenant' : 'Add Tenant'}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
             <X size={20} />
@@ -104,6 +94,25 @@ export default function TenantFormModal({ open, onClose, onSubmit, initial, load
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+          {/* Lease warning when editing */}
+          {isEditing && tenantLease && (
+            <div className={`flex items-start gap-3 rounded-xl px-4 py-3 text-sm ${
+              tenantLease.status === 'Active' ? 'bg-amber-50 border border-amber-200 text-amber-700'
+              : tenantLease.status === 'Pending' ? 'bg-blue-50 border border-blue-200 text-blue-700'
+              : tenantLease.status === 'Terminated' ? 'bg-red-50 border border-red-200 text-red-700'
+              : 'bg-slate-50 border border-slate-200 text-slate-600'
+            }`}>
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium">This tenant has a lease ({tenantLease.status})</p>
+                <p className="text-xs mt-0.5 opacity-80">
+                  {tenantLease.propertyName} — Unit {tenantLease.unitNumber} &middot; ${tenantLease.monthlyRent.toLocaleString()}/mo
+                  {tenantLease.status === 'Active' && ' · Unit assignment is managed by the lease.'}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
@@ -147,35 +156,16 @@ export default function TenantFormModal({ open, onClose, onSubmit, initial, load
             </div>
           </div>
 
-          {/* Property / Unit assignment */}
-          <div className="border-t border-slate-100 pt-4">
-            <p className="text-sm font-medium text-slate-700 mb-3">Unit Assignment (optional)</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Property</label>
-                <select value={selectedPropertyId} onChange={handlePropertyChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white">
-                  <option value="">— None —</option>
-                  {properties.map(p => (
-                    <option key={p.propertyId} value={p.propertyId}>{p.name}</option>
-                  ))}
-                </select>
+          {/* Unit Assignment - only shown when editing, always readonly */}
+          {isEditing && initial?.propertyName && initial?.unitNumber && (
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-sm font-medium text-slate-700 mb-3">Unit Assignment</p>
+              <div className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
+                {initial.propertyName} — Unit {initial.unitNumber}
               </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Unit</label>
-                <select {...register('unitId')}
-                  disabled={!selectedPropertyId}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white disabled:bg-slate-50 disabled:text-slate-400">
-                  <option value="">— None —</option>
-                  {units.map(u => (
-                    <option key={u.unitId} value={u.unitId}>
-                      Unit {u.unitNumber} {u.status !== 'Available' && initial?.unitId !== u.unitId ? `(${u.status})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <p className="text-xs text-slate-400 mt-1.5">Unit assignment is managed through leases.</p>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
@@ -191,7 +181,7 @@ export default function TenantFormModal({ open, onClose, onSubmit, initial, load
             <button type="submit" disabled={loading}
               className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center gap-2 disabled:opacity-60">
               {loading && <Loader2 size={14} className="animate-spin" />}
-              {initial ? 'Save Changes' : 'Add Tenant'}
+              {isEditing ? 'Save Changes' : 'Add Tenant'}
             </button>
           </div>
         </form>
